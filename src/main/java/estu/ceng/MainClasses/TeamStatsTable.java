@@ -1,6 +1,4 @@
-package estu.ceng.Interface;
-
-import estu.ceng.MainClasses.Team;
+package estu.ceng.MainClasses;
 
 import java.util.Collections;
 import java.util.Comparator;

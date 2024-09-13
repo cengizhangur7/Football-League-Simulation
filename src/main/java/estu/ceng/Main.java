@@ -1,7 +1,7 @@
 package estu.ceng;
 
-import estu.ceng.Interface.Fixture;
-import estu.ceng.Interface.TeamStatsTable;
+import estu.ceng.MainClasses.Fixture;
+import estu.ceng.MainClasses.TeamStatsTable;
 import estu.ceng.MainClasses.*;
 
 import java.util.ArrayList;
