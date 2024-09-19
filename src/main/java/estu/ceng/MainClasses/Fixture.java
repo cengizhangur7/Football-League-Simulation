@@ -1,5 +1,9 @@
 package estu.ceng.MainClasses;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -7,55 +11,63 @@ import java.util.List;
 public class Fixture {
     private List<Team> teams; // Ligdeki takımların listesi
     private List<List<Match>> allMatches; // Tüm maçların listesi (hafta bazında)
+    private LocalDate startDate; // Ligin başlangıç tarihi
+    private static final LocalTime[] matchTimes = {LocalTime.of(15, 0), LocalTime.of(18, 0), LocalTime.of(20, 45)}; // Maç saatleri
+    private static final int MATCHES_PER_WEEK = 9; // Haftalık maç sayısı
 
     public Fixture(List<Team> teams) {
         this.teams = teams;
         this.allMatches = new ArrayList<>();
+        this.startDate = LocalDate.of(2024, 9, 1); // Ligin başlangıç tarihi
         generateFixture(); // Fikstürü oluşturur
     }
 
     // Fikstürü oluşturur
     private void generateFixture() {
         int numTeams = teams.size();
-        boolean odd = (numTeams % 2 != 0); // Takım sayısının tek olup olmadığını kontrol eder
+        boolean odd = (numTeams % 2 != 0);
         List<Team> tempTeams = new ArrayList<>(teams);
 
         if (odd) {
-            tempTeams.add(null); // Eğer takım sayısı tekse bye ekle
+            tempTeams.add(null);
             numTeams++;
         }
 
-        // İlk yarıyı ve ikinci yarıyı oluşturur
-        List<Team> firstHalf = new ArrayList<>(tempTeams.subList(0, numTeams / 2));
-        List<Team> secondHalf = new ArrayList<>(tempTeams.subList(numTeams / 2, numTeams));
-        Collections.reverse(secondHalf); // İkinci yarıyı ters çevirir
-
+        // İlk yarıyı oluşturur
         for (int round = 0; round < numTeams - 1; round++) {
-            List<Match> weeklyMatches = new ArrayList<>(); // Haftalık maçları tutar
-            for (int i = 0; i < firstHalf.size(); i++) {
-                Team home = firstHalf.get(i);
-                Team away = secondHalf.get(i);
+            List<Match> weeklyMatches = new ArrayList<>();
+            LocalDate currentWeekFriday = startDate.plusWeeks(round);
+
+            // Cuma, Cumartesi, Pazar günlerine yayarak maçları planla
+            for (int i = 0; i < numTeams / 2; i++) {
+                LocalDate matchDay = currentWeekFriday.plusDays(i / 3); // Cuma: 0, Cumartesi: 1, Pazar: 2
+
+                Team home = tempTeams.get(i);
+                Team away = tempTeams.get(numTeams - i - 1);
                 if (home != null && away != null) {
-                    weeklyMatches.add(new Match(home, away)); // Haftalık maçları ekler
+                    LocalTime matchTime = matchTimes[i % matchTimes.length];
+                    LocalDateTime matchDateTime = LocalDateTime.of(matchDay, matchTime);
+
+                    weeklyMatches.add(new Match(home, away, matchDateTime));
                 }
             }
-            allMatches.add(weeklyMatches); // Tüm maçlara haftalık maçları ekler
+            allMatches.add(weeklyMatches);
 
-            // Takımları rotasyona tabi tut
-            secondHalf.add(1, firstHalf.remove(0)); // İlk takım her hafta değişecek şekilde yer değiştir
-            firstHalf.add(firstHalf.size(), secondHalf.remove(secondHalf.size() - 1)); // Diğer takımları rotasyona tabi tut
+            Team lastTeam = tempTeams.remove(numTeams - 1);
+            tempTeams.add(1, lastTeam);
         }
 
-        // İkinci yarı için ters ev sahibi-deplasman maçlarını ekle
-        List<List<Match>> secondHalfMatches = new ArrayList<>();
+        // İkinci yarıyı oluştur
+        List<List<Match>> secondHalfMatches = new ArrayList<>(); // Yeni bir liste oluştur
         for (List<Match> week : allMatches) {
             List<Match> reverseWeek = new ArrayList<>();
             for (Match match : week) {
-                reverseWeek.add(new Match(match.getAwayTeam(), match.getHomeTeam())); // Ev sahibi ve deplasmanı değiştirerek ekler
+                LocalDateTime matchDateTime = match.getMatchDateTime().plusWeeks(numTeams - 1);
+                reverseWeek.add(new Match(match.getAwayTeam(), match.getHomeTeam(), matchDateTime));
             }
-            secondHalfMatches.add(reverseWeek);
+            secondHalfMatches.add(reverseWeek); // İkinci yarıyı ayrı listeye ekle
         }
-        allMatches.addAll(secondHalfMatches); // İkinci yarıyı tüm maçlara ekler
+        allMatches.addAll(secondHalfMatches); // Son olarak, ikinci yarıyı allMatches'e ekle
     }
 
     // Maçları simüle eder
@@ -70,15 +82,19 @@ public class Fixture {
             printLine(50);
             System.out.println(boldStart + "Week " + week + " Fixture:" + boldEnd);
 
-            Match.resetUsedFanStrengths();
+            Match.resetUsedFanStrengths(); // Her hafta için fan güçleri sıfırlanır
 
-            for (Match match : weeklyMatches) {
+            for (int i = 0; i < MATCHES_PER_WEEK; i++) { // Sadece 9 maç için fan gücü üretilecek
+                Match match = weeklyMatches.get(i);
                 try {
                     int homeFanStrength = match.generateFanStrength(true);
                     int awayFanStrength = match.generateFanStrength(false);
-                    match.getHomeTeam().addFanStrength(homeFanStrength);
-                    match.getAwayTeam().addFanStrength(awayFanStrength);
-                    System.out.println(match.getHomeTeam().getName() + "(Fan Strength:" + match.getHomeTeam().getFanStrength() + ")" + " vs " + match.getAwayTeam().getName() + "(Fan Strength:" +  match.getAwayTeam().getFanStrength() + ")");
+                    match.getHomeTeam().addHomeFanStrength(homeFanStrength); // Ev maçları için fan gücü ekleniyor
+                    match.getAwayTeam().addAwayFanStrength(awayFanStrength); // Deplasman maçları için fan gücü ekleniyor
+
+                    System.out.println(match.getHomeTeam().getName() + " vs " +
+                            match.getAwayTeam().getName() + " --- " +
+                            match.getMatchDateTime().format(DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm")));
                 } catch (Exception e) {
                     System.out.println("Error generating fan strengths: " + e.getMessage());
                     e.printStackTrace();
@@ -86,26 +102,28 @@ public class Fixture {
             }
 
             System.out.println("\n" + boldStart + "Week " + week + " Results:" + boldEnd);
-            for (Match match : weeklyMatches) {
+            for (int i = 0; i < MATCHES_PER_WEEK; i++) {
+                Match match = weeklyMatches.get(i);
                 try {
-                    match.simulate();
+                    match.simulate(); // Maçı simüle eder
                     System.out.println(match.getHomeTeam().getName() + " " + match.getHomeGoals() + " - " + match.getAwayGoals() + " " + match.getAwayTeam().getName());
-
                 } catch (Exception e) {
                     System.out.println("Error during match simulation: " + e.getMessage());
                     e.printStackTrace();
                 }
             }
+
             System.out.println();
-            printLeagueTable(week, boldStart,boldEnd);
+            printLeagueTable(week, boldStart, boldEnd); // Haftalık lig tablosunu yazdır
             printLine(50);
             week++;
         }
     }
 
+    // Liderlik tablosunu yazdırır
     private void printLeagueTable(int week, String boldStart, String boldEnd) {
-        System.out.println("\n" + boldStart+ "Week " + week + " Leaderboard");
-        System.out.printf(boldStart + "%-6s %-20s %-5s %-5s %-5s %-5s %-5s %-5s %-5s" +boldEnd + "\n", "Güç", "İsim", "P", "A", "AG", "YG", "G", "B", "M");
+        System.out.println("\n" + boldStart + "Week " + week + " Leaderboard");
+        System.out.printf(boldStart + "%-6s %-20s %-5s %-5s %-5s %-5s %-5s %-5s %-5s" + boldEnd + "\n", "Güç", "İsim", "P", "A", "AG", "YG", "G", "B", "M");
         Collections.sort(teams, (a, b) -> {
             if (b.getPoints() != a.getPoints()) return b.getPoints() - a.getPoints();
             if ((b.getGoalsFor() - b.getGoalsAgainst()) != (a.getGoalsFor() - a.getGoalsAgainst())) return (b.getGoalsFor() - b.getGoalsAgainst()) - (a.getGoalsFor() - a.getGoalsAgainst());
@@ -128,11 +146,6 @@ public class Fixture {
             );
         }
     }
-
-
-
-
-
 
     // Bir çizgi çizer
     private void printLine(int length) {

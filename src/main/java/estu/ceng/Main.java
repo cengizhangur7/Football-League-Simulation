@@ -1,7 +1,9 @@
 package estu.ceng;
 
 import estu.ceng.MainClasses.Fixture;
-import estu.ceng.MainClasses.TeamStatsTable;
+import estu.ceng.Tables.FanStatsTable;
+import estu.ceng.Tables.LeagueStatsTable;
+import estu.ceng.Tables.TeamStatsTable;
 import estu.ceng.MainClasses.*;
 
 import java.util.ArrayList;
@@ -13,12 +15,17 @@ public class Main {
 
     private static final int NUMBER_OF_TEAMS = 18; // Ligde yer alacak takım sayısı
     private static List<Team> selectedTeams = new ArrayList<>(); // Seçilen takımların listesi
+    private static LeagueStatsTable leagueStatsTable; // Lig istatistiklerini hesaplayacak sınıf
+    private static Fixture fixture; // Fikstürü yönetecek sınıf
 
     public static void main(String[] args) {
         initializeTeams(); // Takımları başlatır ve rastgele seçer
 
-        Fixture fixture = new Fixture(selectedTeams); // Fikstürü oluşturur
+        fixture = new Fixture(selectedTeams); // Fikstürü oluşturur
         fixture.simulateMatches(); // Maçları simüle eder
+
+        // Lig istatistikleri için LeagueStatsTable sınıfını oluşturuyoruz
+        leagueStatsTable = new LeagueStatsTable(selectedTeams);
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
@@ -30,6 +37,16 @@ public class Main {
                     break;
                 case 2:
                     showTeamStats(); // Takım istatistiklerini gösterir
+                    break;
+                case 3:
+                    showLeagueStats(); // Lig istatistiklerini gösterir
+                    break;
+                case 4:
+                    showFanStatistics(); // Fan istatistiklerini gösterir
+                    break;
+                case 5:
+                    System.out.println("Exiting the program...");
+                    System.exit(0); // Programdan çıkış
                     break;
                 default:
                     System.out.println("Invalid choice. Please try again."); // Geçersiz seçim mesajı
@@ -50,7 +67,10 @@ public class Main {
     private static void showMainMenu() {
         System.out.println("Main Menu:");
         System.out.println("1. Player");
-        System.out.println("2. Teams Stats");  // Yeni seçenek eklendi
+        System.out.println("2. Teams Stats");
+        System.out.println("3. League Stats");
+        System.out.println("4. Fan Statistics"); // Fan istatistikleri seçeneği eklendi
+        System.out.println("5. Exit");
         System.out.print("Enter your choice: ");
     }
 
@@ -94,4 +114,18 @@ public class Main {
         String table = TeamStatsTable.generateTeamStatsTable(selectedTeams);
         System.out.println(table); // Takım istatistik tablosunu yazdırır
     }
+
+    // Lig istatistiklerini gösterir
+    private static void showLeagueStats() {
+        System.out.println("League Stats:");
+        leagueStatsTable.displayLeagueStats(); // Lig istatistiklerini görüntüler
+    }
+
+    // Fan istatistiklerini gösterir
+    private static void showFanStatistics() {
+        System.out.println("Fan Statistics:");
+        FanStatsTable fanStatsTable = new FanStatsTable(selectedTeams);
+        fanStatsTable.displayFanStatistics();
+    }
+
 }

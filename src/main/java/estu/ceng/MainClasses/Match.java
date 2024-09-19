@@ -1,30 +1,75 @@
 package estu.ceng.MainClasses;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Random;
-import java.util.Set;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 public class Match {
     private Team homeTeam; // Ev sahibi takım
     private Team awayTeam; // Deplasman takımı
     private int homeGoals; // Ev sahibi takımın attığı gol sayısı
     private int awayGoals; // Deplasman takımının attığı gol sayısı
-    private static Set<Integer> usedFanStrengths; // Her hafta için kullanılan fan güçlerini takip etmek için
+    private static List<Integer> homeFanStrengthPool; // Ev sahipleri için kullanılacak fan güçleri
+    private static List<Integer> awayFanStrengthPool; // Deplasman takımları için kullanılacak fan güçleri
+    private LocalDateTime matchDateTime; // Maçın tarihi ve saati
 
-    public Match(Team homeTeam, Team awayTeam) {
+    // Constructor - Tarih ve saat ekliyoruz
+    public Match(Team homeTeam, Team awayTeam, LocalDateTime matchDateTime) {
         this.homeTeam = homeTeam;
         this.awayTeam = awayTeam;
+        this.matchDateTime = matchDateTime;
     }
 
-    // Haftalık fan güçlerini sıfırlayan bir metod
+    // Maç detaylarını gösteren metot
+    public void displayMatchDetails() {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm");
+        System.out.println("Match: " + homeTeam.getName() + " vs " + awayTeam.getName() + " on " + matchDateTime.format(formatter));
+    }
+
+    // Haftalık fan güç havuzunu sıfırlayan metod
     public static void resetUsedFanStrengths() {
-        usedFanStrengths = new HashSet<>();
+        homeFanStrengthPool = new ArrayList<>();
+        awayFanStrengthPool = new ArrayList<>();
+
+        // 11-20 aralığında ev sahibi fan güçlerini oluştur
+        for (int i = 10; i <= 20; i++) {
+            homeFanStrengthPool.add(i);
+        }
+
+        // 0-10 aralığında deplasman fan güçlerini oluştur
+        for (int i = 0; i <= 10; i++) {
+            awayFanStrengthPool.add(i);
+        }
+
+        // Rastgele karıştır, böylece her hafta farklı güçler atanır
+        Collections.shuffle(homeFanStrengthPool);
+        Collections.shuffle(awayFanStrengthPool);
+    }
+
+    // Ev sahibi ve deplasman için fan güçlerini atayan metod
+    public int generateFanStrength(boolean isHome) {
+        if (isHome) {
+            if (homeFanStrengthPool.isEmpty()) {
+                throw new IndexOutOfBoundsException("Home fan strength pool is empty!");
+            }
+            return homeFanStrengthPool.remove(0); // Ev sahibi fan güçlerinden sıradaki birini al
+        } else {
+            if (awayFanStrengthPool.isEmpty()) {
+                throw new IndexOutOfBoundsException("Away fan strength pool is empty!");
+            }
+            return awayFanStrengthPool.remove(0); // Deplasman fan güçlerinden sıradaki birini al
+        }
     }
 
     // Maçları simüle eden metod
     public void simulate() {
         Random rand = new Random();
-        double homeAdvantage = 1.1 + (homeTeam.getFanStrength() / 100.0); // Ev sahibi takımın taraftar avantajı
+
+        int homeFanStrength = homeTeam.getLastHomeFanStrength();
+        double homeAdvantage = 1.1 + (homeFanStrength / 100.0); // Ev sahibi takımın taraftar avantajı
         double homeStrength = homeTeam.getOffenseStrength() * homeAdvantage; // Ev sahibi takımın hücum gücü
         double awayStrength = awayTeam.getOffenseStrength(); // Deplasman takımının hücum gücü
 
@@ -40,15 +85,6 @@ public class Match {
         // Deplasman takımının attığı golleri hesapla, ev sahibi takımının kalecilik gücünü dikkate al
         awayGoals = generateGoals(awayAttacks, awayTeam.getOffenseStrength(), homeTeam.getDefenseStrength(), rand, homeGoalkeepingStrength);
 
-        /**Hücum gücü defans gücünden düşük olmasına rağmen gol atan takımları kontrol eder ve yazdırır
-        if (homeTeam.getOffenseStrength() < awayTeam.getDefenseStrength() && homeGoals > 0) {
-            System.out.println("Home team " + homeTeam.getName() + " scored despite lower offense strength.");
-        }
-
-        if (awayTeam.getOffenseStrength() < homeTeam.getDefenseStrength() && awayGoals > 0) {
-            System.out.println("Away team " + awayTeam.getName() + " scored despite lower offense strength.");
-        }*/
-
         // Maç sonuçlarını günceller
         homeTeam.addGoalsFor(homeGoals);
         homeTeam.addGoalsAgainst(awayGoals);
@@ -58,11 +94,15 @@ public class Match {
         if (homeGoals > awayGoals) {
             homeTeam.addPoints(3); // Ev sahibi takım kazanırsa 3 puan ekler
             homeTeam.addWin(); // Ev sahibi takımın galibiyet sayısını artırır
+            homeTeam.addHomeWin(); // Ev galibiyeti eklenir
             awayTeam.addLoss(); // Deplasman takımının mağlubiyet sayısını artırır
+            awayTeam.addAwayLoss(); // Deplasman mağlubiyeti eklenir
         } else if (awayGoals > homeGoals) {
             awayTeam.addPoints(3); // Deplasman takımı kazanırsa 3 puan ekler
             awayTeam.addWin(); // Deplasman takımının galibiyet sayısını artırır
+            awayTeam.addAwayWin(); // Deplasman galibiyeti eklenir
             homeTeam.addLoss(); // Ev sahibi takımın mağlubiyet sayısını artırır
+            homeTeam.addHomeLoss(); // Ev mağlubiyeti eklenir
         } else {
             homeTeam.addPoints(1); // Beraberlik durumunda her iki takıma 1 puan ekler
             awayTeam.addPoints(1);
@@ -70,7 +110,6 @@ public class Match {
             awayTeam.addDraw(); // Deplasman takımının beraberlik sayısını artırır
         }
     }
-
 
     // Gol sayılarını belirleyen metod
     private int generateGoals(int attacks, double attackingStrength, double defendingStrength, Random rand, double goalkeepingStrength) {
@@ -90,7 +129,6 @@ public class Match {
         int successfulAttacks = (int) Math.min(attacks, potentialSuccessfulAttacks);
 
         // Kalecilik gücüne göre gol olma ihtimalini hesaplar
-        // Kalecilik gücü arttıkça gol olma ihtimali düşer
         double goalProbability = Math.max(0.1, 1.0 - (goalkeepingStrength / 20.0));
         for (int i = 0; i < successfulAttacks; i++) {
             if (rand.nextDouble() < goalProbability) {  // Kalecilik gücüne göre gol olma şansı
@@ -99,35 +137,6 @@ public class Match {
         }
 
         return goals;
-    }
-
-
-    // Fan gücünü oluşturan metod
-    public int generateFanStrength(boolean isHome) {
-        Random rand = new Random();
-        int fanStrength;
-        int maxAttempts = 100; // Sonsuz döngüyü önlemek için maksimum deneme sayısı
-        int attempts = 0;
-
-        if (isHome) {
-            do {
-                fanStrength = rand.nextInt(11) + 10; // 10-20 arasında rastgele bir sayı
-                attempts++;
-                if (attempts >= maxAttempts) {
-                    throw new RuntimeException("Unable to generate a unique fan strength for home team.");
-                }
-            } while (usedFanStrengths.contains(fanStrength));
-        } else {
-            do {
-                fanStrength = rand.nextInt(10) + 1; // 1-10 arasında rastgele bir sayı
-                attempts++;
-                if (attempts >= maxAttempts) {
-                    throw new RuntimeException("Unable to generate a unique fan strength for away team.");
-                }
-            } while (usedFanStrengths.contains(fanStrength));
-        }
-        usedFanStrengths.add(fanStrength);
-        return fanStrength;
     }
 
     // Ev sahibi takım getter metodu
@@ -148,5 +157,10 @@ public class Match {
     // Deplasman takımının gol sayısını döndüren metod
     public int getAwayGoals() {
         return awayGoals;
+    }
+
+    // Maç tarih ve saatini döndüren metod
+    public LocalDateTime getMatchDateTime() {
+        return matchDateTime;
     }
 }
